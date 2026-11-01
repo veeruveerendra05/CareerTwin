@@ -3,17 +3,16 @@ import {
   Mic, MicOff, Video, VideoOff, Maximize, Minimize, Volume2, VolumeX, 
   Play, CheckCircle2, XCircle, ChevronRight, RefreshCw, Award, 
   ArrowLeft, Sparkles, Code2, Bot, ShieldCheck, AlertTriangle, 
-  ExternalLink, Terminal, FileText, Briefcase, Building, Layers, 
-  Clock, Send, User, BookOpen, Target, Check, RotateCcw, HelpCircle
+  FileText, Briefcase, Layers, 
+  Clock, User, BookOpen, Target, Check, RotateCcw
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   startInterview, submitAnswer, runCodeExecution, getInterviewResult, 
-  getInterviewHistory, getInterviewSession, getInterviewVoices, fetchSpeechifyAudio 
+  getInterviewHistory, getInterviewVoices, fetchSpeechifyAudio 
 } from '../features/interview/interviewService';
 import { getResumes } from '../features/resume/resumeService';
 import { waitForAuthReady } from '../api/axiosClient';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Progress } from '../components/ui/Progress';
 import { auth } from '../firebase';
 
@@ -90,7 +89,6 @@ export default function Interview() {
 
   // Hardware & Speech State
   const [cameraActive, setCameraActive] = useState(false);
-  const [micActive, setMicActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isBotSpeaking, setIsBotSpeaking] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
@@ -109,6 +107,38 @@ export default function Interview() {
   const speechRecognitionRef = useRef(null);
   const currentAudioRef = useRef(null);
   const timerIntervalRef = useRef(null);
+  const isListeningRef = useRef(false);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
+
+  const startCameraAndMic = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: true
+      });
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraActive(true);
+      return true;
+    } catch (err) {
+      console.warn('Camera/Mic permission warning:', err);
+      setCameraActive(false);
+      return false;
+    }
+  };
+
+  const stopCameraAndMic = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setCameraActive(false);
+  };
 
   // -------------------------------------------------------------------------
   // INITIALIZATION
@@ -183,8 +213,8 @@ export default function Interview() {
       };
 
       recognition.onend = () => {
-        if (isListening) {
-          try { recognition.start(); } catch {}
+        if (isListeningRef.current) {
+          try { recognition.start(); } catch { void 0; }
         }
       };
 
@@ -194,10 +224,10 @@ export default function Interview() {
     return () => {
       stopCameraAndMic();
       if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.stop(); } catch {}
+        try { speechRecognitionRef.current.stop(); } catch { void 0; }
       }
       if (currentAudioRef.current) {
-        try { currentAudioRef.current.pause(); } catch {}
+        try { currentAudioRef.current.pause(); } catch { void 0; }
       }
       window.speechSynthesis?.cancel();
     };
@@ -233,7 +263,7 @@ export default function Interview() {
       try {
         currentAudioRef.current.pause();
         currentAudioRef.current.currentTime = 0;
-      } catch {}
+      } catch { void 0; }
     }
     window.speechSynthesis?.cancel();
 
@@ -275,36 +305,6 @@ export default function Interview() {
         setIsFullscreen(false);
       }
     }
-  };
-
-  const startCameraAndMic = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: true
-      });
-      mediaStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraActive(true);
-      setMicActive(true);
-      return true;
-    } catch (err) {
-      console.warn('Camera/Mic permission warning:', err);
-      setCameraActive(false);
-      setMicActive(false);
-      return false;
-    }
-  };
-
-  const stopCameraAndMic = () => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-    setCameraActive(false);
-    setMicActive(false);
   };
 
   const toggleMicListening = () => {
@@ -427,7 +427,7 @@ export default function Interview() {
         try {
           speechRecognitionRef.current.start();
           setIsListening(true);
-        } catch {}
+        } catch { void 0; }
       }
     } catch (err) {
       stopCameraAndMic();
@@ -472,11 +472,11 @@ export default function Interview() {
 
     try {
       if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.stop(); } catch {}
+        try { speechRecognitionRef.current.stop(); } catch { void 0; }
         setIsListening(false);
       }
       if (currentAudioRef.current) {
-        try { currentAudioRef.current.pause(); } catch {}
+        try { currentAudioRef.current.pause(); } catch { void 0; }
       }
       window.speechSynthesis?.cancel();
 
@@ -547,7 +547,7 @@ export default function Interview() {
         try {
           speechRecognitionRef.current.start();
           setIsListening(true);
-        } catch {}
+        } catch { void 0; }
       }
     } else {
       await handleFinishInterview();
@@ -559,7 +559,7 @@ export default function Interview() {
     setLoading(true);
     stopCameraAndMic();
     if (speechRecognitionRef.current) {
-      try { speechRecognitionRef.current.stop(); } catch {}
+      try { speechRecognitionRef.current.stop(); } catch { void 0; }
       setIsListening(false);
     }
     try {
